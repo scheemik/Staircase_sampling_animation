@@ -10,13 +10,19 @@ import matplotlib as mpl
 import pandas as pd
 import mat73 # For reading the ITP `cormat` files
 from scipy import interpolate # For interpolating data
+import os # For checking whether the output directory exists
+import shutil # For removing old versions of the output directory
 
 ################################################################################
+# Define output directory
+output_dir = 'frames'
 # Select which profile to plot (must be a csv)
-pf_file = 'ITP3cormat1073'
+ITP_ID = '3'
+ITP_pf = '1073'
+pf_file = 'ITP'+ITP_ID+'cormat'+ITP_pf
 # Set depth limits
 p_lims = [240, 290] # Following Timmermans et al. 2008 Figure 2a
-p_lims = [250, 270]
+p_lims = [260, 270]
 
 ################################################################################
 # Set plot mode
@@ -27,8 +33,14 @@ dark_mode = True
 if dark_mode:
     plt.style.use('dark_background')
     std_clr = 'w'
+    t_clr   = 'lightcoral'
+    s_clr   = 'silver'
+    ss_clr  = 'w'
 else:
     std_clr = 'k'
+    t_clr   = 'lightcoral'
+    s_clr   = 'silver'
+    ss_clr  = 'k'
 ################################################################################
 
 def interp_pts(res, p, t, s):
@@ -97,6 +109,84 @@ def set_fig_axes(heights, widths, fig_ratio=0.5, fig_size=1, share_x_axis=None, 
         axes.ticklabel_format(style='sci', scilimits=(-3,3), useMathText=True)
     return fig, axes
 
+def plot_T_S_separate(axes, data, s_res, s_rate, i_offset, p_lims):
+    # Set limits
+    if not isinstance(p_lims, type(None)):
+        p_lim_low  = 'p>'+str(p_lims[0])
+        data       = data.query(p_lim_low)
+        p_lim_high = 'p<'+str(p_lims[1])
+        data       = data.query(p_lim_high)
+    # Interpolate the data to the given resolution
+    p_new, t_new, s_new = interp_pts(s_res/s_rate, data['p'], data['temp'], data['salt'])
+    # Subsample the interpolated data
+    p_ss, t_ss, s_ss = p_new[i_offset::s_rate], t_new[i_offset::s_rate], s_new[i_offset::s_rate]
+    #
+    # Plot interpolated profile
+    axes[0].plot(t_new, -p_new, color=t_clr, linewidth=2, alpha=0.7, zorder=1, label='Original T profile')
+    axes[1].plot(s_new, -p_new, color=s_clr, linewidth=2, alpha=0.7, zorder=1, label='Original S profile')
+    # Subsampled profiles
+    axes[0].plot(t_ss, -p_ss, color=t_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled T profile')
+    axes[1].plot(s_ss, -p_ss, color=s_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled S profile')
+    #   Plot points of subsampled profile
+    axes[0].scatter(t_ss, -p_ss, color=t_clr, s=65, marker='.', zorder=3)
+    axes[1].scatter(s_ss, -p_ss, color=s_clr, s=65, marker='.', zorder=3)
+    # Add subsampled grid
+    #   vertical lines
+    axes[0].vlines(t_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='--', colors=t_clr, alpha=0.5, zorder=4)
+    axes[1].vlines(s_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='--', colors=s_clr, alpha=0.5, zorder=4)
+    #   horizontal lines
+    axes[0].hlines(-p_ss, min(t_new), max(t_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
+    axes[1].hlines(-p_ss, min(s_new), max(s_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
+    #
+    # Set titles and labels
+    axes[0].set_title('ITP'+ITP_ID+' profile '+ITP_pf+' Temperature')
+    axes[0].set_ylabel('Pressure (dbar)')
+    axes[0].set_xlabel(r'Temperature ($^\circ$C)')
+    axes[0].legend()
+    #
+    axes[1].set_title('ITP'+ITP_ID+' profile '+ITP_pf+' Salinity')
+    axes[1].set_xlabel(r'Salinity (g/kg)')
+    axes[1].legend()
+
+def plot_T_S_together(ax, data, s_res, s_rate, i_offset, p_lims):
+    # Set limits
+    if not isinstance(p_lims, type(None)):
+        p_lim_low  = 'p>'+str(p_lims[0])
+        data       = data.query(p_lim_low)
+        p_lim_high = 'p<'+str(p_lims[1])
+        data       = data.query(p_lim_high)
+    # Interpolate the data to the given resolution
+    p_new, t_new, s_new = interp_pts(s_res/s_rate, data['p'], data['temp'], data['salt'])
+    # Subsample the interpolated data
+    p_ss, t_ss, s_ss = p_new[i_offset::s_rate], t_new[i_offset::s_rate], s_new[i_offset::s_rate]
+    #
+    # Plot interpolated profile
+    ax.plot(t_new, -p_new, color=t_clr, linewidth=2, alpha=0.7, zorder=1, label='Original T profile')
+    # ax.plot(s_new, -p_new, color=s_clr, linewidth=2, alpha=0.7, zorder=1, label='Original S profile')
+    # Subsampled profiles
+    ax.plot(t_ss, -p_ss, color=t_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled T profile')
+    # ax.plot(s_ss, -p_ss, color=s_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled S profile')
+    #   Plot points of subsampled profile
+    ax.scatter(t_ss, -p_ss, color=t_clr, s=65, marker='.', zorder=3)
+    # ax.scatter(s_ss, -p_ss, color=s_clr, s=65, marker='.', zorder=3)
+    # Add subsampled grid
+    #   vertical lines
+    ax.vlines(t_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='--', colors=t_clr, alpha=0.5, zorder=4)
+    # ax.vlines(s_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='--', colors=s_clr, alpha=0.5, zorder=4)
+    #   horizontal lines
+    ax.hlines(-p_ss, min(t_new), max(t_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
+    # ax.hlines(-p_ss, min(s_new), max(s_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
+    #
+    # Set titles and labels
+    ax.set_title('ITP'+ITP_ID+' profile '+ITP_pf+' Temperature')
+    ax.set_ylabel('Pressure (dbar)')
+    ax.set_xlabel(r'Temperature ($^\circ$C)')
+    ax.legend()
+    #
+    # ax.set_title('ITP'+ITP_ID+' profile '+ITP_pf+' Salinity')
+    # ax.set_xlabel(r'Salinity (g/kg)')
+    # ax.legend()
+
 def plot_profile(data, s_res, s_rate, i_offset, p_lims=None, filename=None):
     """
     Plots the Temperature vs Salinity data
@@ -112,57 +202,24 @@ def plot_profile(data, s_res, s_rate, i_offset, p_lims=None, filename=None):
     p_lims      Limits for the pressure axis [p_min, p_max]
     """
     # Start plot title
-    plt_title = pf_file #'Example ITP profile'
+    plt_title = 'Profiles subsampled at '+str(s_res)+'m resolution'
     # Set figure and axes for plot
     fig, axes = set_fig_axes([1], [1,1], fig_ratio=0.5, fig_size=1.25)
     #
-    # Set limits
-    if not isinstance(p_lims, type(None)):
-        p_lim_low  = 'p>'+str(p_lims[0])
-        data       = data.query(p_lim_low)
-        p_lim_high = 'p<'+str(p_lims[1])
-        data       = data.query(p_lim_high)
-    # Interpolate the data to the given resolution
-    p_new, t_new, s_new = interp_pts(s_res/s_rate, data['p'], data['temp'], data['salt'])
-    # Subsample the interpolated data
-    p_ss, t_ss, s_ss = p_new[i_offset::s_rate], t_new[i_offset::s_rate], s_new[i_offset::s_rate]
-    # Plot cormat
-    #   Plot the same color lines for all of them
-    clr = 'w'
-    lbl = 'label'
-    # axes[0].plot(data['temp'], -data['p'], color='lightcoral', linewidth=1, alpha=0.5, zorder=1)
-    # axes[1].plot(data['salt'], -data['p'], color='silver', linewidth=1, alpha=0.5, zorder=1)
-    #   Plot points with colors unique to this profile on top
-    # axes[0].scatter(data['temp'], -data['p'], color='lightcoral', s=3.7, marker='.', label=lbl, zorder=2)
-    # axes[1].scatter(data['salt'], -data['p'], color='silver', s=3.7, marker='.', label=lbl, zorder=2)
-    # Plot interpolated profile
-    axes[0].plot(t_new, -p_new, color='lightcoral', linewidth=2, alpha=0.7, zorder=1)
-    axes[1].plot(s_new, -p_new, color='silver', linewidth=2, alpha=0.7, zorder=1)
-    # Subsampled profiles
-    ss_clr = 'tab:orange'
-    axes[0].plot(t_ss, -p_ss, color=ss_clr, linestyle='--', alpha=1, zorder=3)
-    axes[1].plot(s_ss, -p_ss, color=ss_clr, linestyle='--', alpha=1, zorder=3)
-    #   Plot points of subsampled profile
-    axes[0].scatter(t_ss, -p_ss, color=ss_clr, s=45, marker='.', label=lbl, zorder=3)
-    axes[1].scatter(s_ss, -p_ss, color=ss_clr, s=45, marker='.', label=lbl, zorder=3)
-    # Add subsampled grid
-    #   vertical lines
-    axes[0].vlines(t_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='--', colors=ss_clr, alpha=0.5, zorder=4)
-    axes[1].vlines(s_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='--', colors=ss_clr, alpha=0.5, zorder=4)
-    #   horizontal lines
-    axes[0].hlines(-p_ss, min(t_new), max(t_new), linewidths=1, linestyles='--', colors=ss_clr, alpha=0.5, zorder=4)
-    axes[1].hlines(-p_ss, min(s_new), max(s_new), linewidths=1, linestyles='--', colors=ss_clr, alpha=0.5, zorder=4)
-    #
-    # Set labels
-    axes[0].set_ylabel('Pressure (dbar)')
-    axes[0].set_xlabel(r'Temperature ($^\circ$C)')
-    axes[1].set_xlabel(r'Salinity (g/kg)')
+    if 1==1:
+        plot_T_S_together(axes[0], data, s_res, s_rate, i_offset, p_lims)
+        plot_T_S_together(axes[1], data, s_res, s_rate, i_offset, p_lims)
+    else:
+        plot_T_S_separate(axes, data, s_res, s_rate, i_offset, p_lims)
     # plt.tight_layout(pad=4)
     # Add overall plot title
     fig.suptitle(plt_title)
     #
     if filename != None:
         plt.savefig(filename, dpi=400)
+        # Close the figure after saving to avoid memory leaks when making many
+        #   figures in a loop
+        plt.close(fig)
     else:
         plt.show()
 
@@ -173,7 +230,13 @@ data = pd.read_csv(pf_file+'.csv')
 
 # Set parameters
 sample_res  = 1.5
-sample_rate = 20
+sample_rate = 40
 
-# Plot data
-plot_profile(data, sample_res, sample_rate, 10, p_lims)
+# Check whether there already exists a directory for the output frames
+if os.path.exists(output_dir):
+    shutil.rmtree(output_dir)
+os.makedirs(output_dir)
+
+# Create frames for the animation
+for i in range(1):#sample_rate):
+    plot_profile(data, sample_res, sample_rate, i, p_lims, filename=(output_dir+'/'+pf_file+'-'+str(i).zfill(3)+'.png'))
