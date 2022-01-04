@@ -17,8 +17,8 @@ import shutil # For removing old versions of the output directory
 # Define output directory
 output_dir = 'frames'
 # Select which profile to plot (must be a csv)
-ITP_ID = '3'
-ITP_pf = '1073'
+ITP_ID = '1'
+ITP_pf = '1257'
 pf_file = 'ITP'+ITP_ID+'cormat'+ITP_pf
 # Set depth limits
 p_lims = [240, 290] # Following Timmermans et al. 2008 Figure 2a
@@ -148,7 +148,7 @@ def plot_T_S_separate(axes, data, s_res, s_rate, i_offset, p_lims):
     axes[1].set_xlabel(r'Salinity (g/kg)')
     axes[1].legend()
 
-def plot_T_S_together(ax, data, s_res, s_rate, i_offset, p_lims):
+def plot_T_S_together(ax, data, s_res, s_rate, i_offset, p_lims, ax_n):
     # Set limits
     if not isinstance(p_lims, type(None)):
         p_lim_low  = 'p>'+str(p_lims[0])
@@ -161,31 +161,40 @@ def plot_T_S_together(ax, data, s_res, s_rate, i_offset, p_lims):
     p_ss, t_ss, s_ss = p_new[i_offset::s_rate], t_new[i_offset::s_rate], s_new[i_offset::s_rate]
     #
     # Plot interpolated profile
-    ax.plot(t_new, -p_new, color=t_clr, linewidth=2, alpha=0.7, zorder=1, label='Original T profile')
-    # ax.plot(s_new, -p_new, color=s_clr, linewidth=2, alpha=0.7, zorder=1, label='Original S profile')
+    og_T_ln = ax.plot(t_new, -p_new, color=t_clr, linewidth=2, alpha=0.7, zorder=1, label='Original T profile')
     # Subsampled profiles
-    ax.plot(t_ss, -p_ss, color=t_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled T profile')
-    # ax.plot(s_ss, -p_ss, color=s_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled S profile')
+    ss_T_ln = ax.plot(t_ss, -p_ss, color=t_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled T profile')
     #   Plot points of subsampled profile
     ax.scatter(t_ss, -p_ss, color=t_clr, s=65, marker='.', zorder=3)
-    # ax.scatter(s_ss, -p_ss, color=s_clr, s=65, marker='.', zorder=3)
     # Add subsampled grid
     #   vertical lines
-    ax.vlines(t_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='--', colors=t_clr, alpha=0.5, zorder=4)
-    # ax.vlines(s_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='--', colors=s_clr, alpha=0.5, zorder=4)
+    ax.vlines(t_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='-.', colors=t_clr, alpha=0.5, zorder=4)
     #   horizontal lines
     ax.hlines(-p_ss, min(t_new), max(t_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
     # ax.hlines(-p_ss, min(s_new), max(s_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
-    #
     # Set titles and labels
-    ax.set_title('ITP'+ITP_ID+' profile '+ITP_pf+' Temperature')
-    ax.set_ylabel('Pressure (dbar)')
-    ax.set_xlabel(r'Temperature ($^\circ$C)')
-    ax.legend()
+    ax.set_title('ITP'+ITP_ID+' profile '+ITP_pf)
+    if ax_n == 0:
+        ax.set_ylabel('Pressure (dbar)')
+    ax.set_xlabel(r'Temperature ($^\circ$C)', color=t_clr)
+    # Change colors of the vertical axes numbers
+    ax.tick_params(axis='x', colors=t_clr)
     #
-    # ax.set_title('ITP'+ITP_ID+' profile '+ITP_pf+' Salinity')
-    # ax.set_xlabel(r'Salinity (g/kg)')
-    # ax.legend()
+    # Create twin axes to plot T and S ontop of one another
+    ax2 = ax.twiny()
+    og_S_ln = ax2.plot(s_new, -p_new, color=s_clr, linewidth=2, alpha=0.7, zorder=1, label='Original S profile')
+    ss_S_ln = ax2.plot(s_ss, -p_ss, color=s_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled S profile')
+    ax2.scatter(s_ss, -p_ss, color=s_clr, s=65, marker='.', zorder=3)
+    ax2.vlines(s_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='-.', colors=s_clr, alpha=0.5, zorder=4)
+    #
+    # Get all the lines in one legend
+    lines  = og_T_ln + og_S_ln + ss_T_ln + ss_S_ln
+    labels = [l.get_label() for l in lines]
+    ax.legend(lines, labels)
+    #
+    ax2.set_xlabel(r'Salinity (g/kg)', color=s_clr)
+    # Change colors of the vertical axes numbers
+    ax2.tick_params(axis='x', colors=s_clr)
 
 def plot_profile(data, s_res, s_rate, i_offset, p_lims=None, filename=None):
     """
@@ -207,11 +216,11 @@ def plot_profile(data, s_res, s_rate, i_offset, p_lims=None, filename=None):
     fig, axes = set_fig_axes([1], [1,1], fig_ratio=0.5, fig_size=1.25)
     #
     if 1==1:
-        plot_T_S_together(axes[0], data, s_res, s_rate, i_offset, p_lims)
-        plot_T_S_together(axes[1], data, s_res, s_rate, i_offset, p_lims)
+        plot_T_S_together(axes[0], data, s_res, s_rate, i_offset, p_lims, 0)
+        plot_T_S_together(axes[1], data, s_res, s_rate, i_offset, p_lims, 1)
     else:
         plot_T_S_separate(axes, data, s_res, s_rate, i_offset, p_lims)
-    # plt.tight_layout(pad=4)
+    plt.tight_layout(pad=4)
     # Add overall plot title
     fig.suptitle(plt_title)
     #
