@@ -16,13 +16,32 @@ import shutil # For removing old versions of the output directory
 ################################################################################
 # Define output directory
 output_dir = 'frames'
-# Select which profile to plot (must be a csv)
-ITP_ID = '1'
-ITP_pf = '1257'
-pf_file = 'ITP'+ITP_ID+'cormat'+ITP_pf
-# Set depth limits
-p_lims = [240, 290] # Following Timmermans et al. 2008 Figure 2a
-p_lims = [260, 270]
+
+# Define name of output frames
+frame_file_name = 'test_2_pfs'
+
+# Select which profiles to plot (must be a csv)
+
+
+ITP001_1259 = {'ITP_ID': '1',
+               'ITP_pf': '1259',
+               # 'p_lims': [203, 233]} # Following Shibley et al. 2017 Figure 3b
+               'p_lims': [210, 220]} # For presentation purposes
+ITP008_1301 = {'ITP_ID': '8',
+               'ITP_pf': '1301',
+               # 'p_lims': [231, 263]} # Following Shibley et al. 2017 Figure 3a
+               'p_lims': [240, 250]} # For presentation purposes
+#
+pfs_to_plot = [ITP008_1301, ITP001_1259]
+pfs_to_plot = [ITP001_1259]
+
+# Whether to write out the subsampled points to a csv
+write_ss_to_csv = True
+
+if write_ss_to_csv:
+    # Check whether there already exists a csv for the
+    if os.path.exists(frame_file_name+'.csv'):
+        os.remove(frame_file_name+'.csv')
 
 ################################################################################
 # Set plot mode
@@ -109,7 +128,11 @@ def set_fig_axes(heights, widths, fig_ratio=0.5, fig_size=1, share_x_axis=None, 
         axes.ticklabel_format(style='sci', scilimits=(-3,3), useMathText=True)
     return fig, axes
 
-def plot_T_S_separate(axes, data, s_res, s_rate, i_offset, p_lims):
+def plot_T_S_separate(axes, df, s_res, s_rate, i_offset):
+    # Import data from csv
+    csv  = 'ITP'+df['ITP_ID']+'cormat'+df['ITP_pf']+'.csv'
+    data = pd.read_csv(csv)
+    p_lims = df['p_lims']
     # Set limits
     if not isinstance(p_lims, type(None)):
         p_lim_low  = 'p>'+str(p_lims[0])
@@ -139,16 +162,30 @@ def plot_T_S_separate(axes, data, s_res, s_rate, i_offset, p_lims):
     axes[1].hlines(-p_ss, min(s_new), max(s_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
     #
     # Set titles and labels
-    axes[0].set_title('ITP'+ITP_ID+' profile '+ITP_pf+' Temperature')
+    axes[0].set_title('ITP'+df['ITP_ID']+' profile '+df['ITP_pf']+' Temperature')
     axes[0].set_ylabel('Pressure (dbar)')
     axes[0].set_xlabel(r'Temperature ($^\circ$C)')
     axes[0].legend()
     #
-    axes[1].set_title('ITP'+ITP_ID+' profile '+ITP_pf+' Salinity')
+    axes[1].set_title('ITP'+df['ITP_ID']+' profile '+df['ITP_pf']+' Salinity')
     axes[1].set_xlabel(r'Salinity (g/kg)')
     axes[1].legend()
+    # Output the dataframe for the subsampled profiles
+    out_dict = {'ITP_ID': df['ITP_ID']*len(t_ss),
+                'ITP_pf': df['ITP_pf']*len(t_ss),
+                'i_offset': [i_offset]*len(t_ss),
+                'temp': t_ss,
+                'salt': s_ss,
+                'p': p_ss
+                }
+    # Build output data frame
+    return pd.DataFrame(out_dict)
 
-def plot_T_S_together(ax, data, s_res, s_rate, i_offset, p_lims, ax_n):
+def plot_T_S_together(ax, df, s_res, s_rate, i_offset, ax_n):
+    # Import data from csv
+    csv  = 'ITP'+df['ITP_ID']+'cormat'+df['ITP_pf']+'.csv'
+    data = pd.read_csv(csv)
+    p_lims = df['p_lims']
     # Set limits
     if not isinstance(p_lims, type(None)):
         p_lim_low  = 'p>'+str(p_lims[0])
@@ -173,7 +210,7 @@ def plot_T_S_together(ax, data, s_res, s_rate, i_offset, p_lims, ax_n):
     ax.hlines(-p_ss, min(t_new), max(t_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
     # ax.hlines(-p_ss, min(s_new), max(s_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
     # Set titles and labels
-    ax.set_title('ITP'+ITP_ID+' profile '+ITP_pf)
+    ax.set_title('ITP'+df['ITP_ID']+' profile '+df['ITP_pf'])
     if ax_n == 0:
         ax.set_ylabel('Pressure (dbar)')
     ax.set_xlabel(r'Temperature ($^\circ$C)', color=t_clr)
@@ -196,10 +233,11 @@ def plot_T_S_together(ax, data, s_res, s_rate, i_offset, p_lims, ax_n):
     # Change colors of the vertical axes numbers
     ax2.tick_params(axis='x', colors=s_clr)
 
-def plot_profile(data, s_res, s_rate, i_offset, p_lims=None, filename=None):
+def plot_profile(pfs_to_plot, s_res, s_rate, i_offset, filename=None, ss_pf_list=None):
     """
     Plots the Temperature vs Salinity data
 
+    pfs_to_plot     A list of data frames, one for each profile
     data        A pandas DataFrame with the following columns:
         temp        An array of temperature values
         salt        An array of salinity values
@@ -209,17 +247,20 @@ def plot_profile(data, s_res, s_rate, i_offset, p_lims=None, filename=None):
                     Interpolation happens at s_res / s_rate
     i_offset    The index offset for subsampling
     p_lims      Limits for the pressure axis [p_min, p_max]
+    ss_pf_list  A blank list in which to store the dataframes of ss profiles
     """
     # Start plot title
     plt_title = 'Profiles subsampled at '+str(s_res)+'m resolution'
     # Set figure and axes for plot
-    fig, axes = set_fig_axes([1], [1,1], fig_ratio=0.5, fig_size=1.25)
+    fig, axes = set_fig_axes([1], [1,1], fig_ratio=0.5, fig_size=1.25, share_x_axis=False, share_y_axis=False)
     #
-    if 1==1:
-        plot_T_S_together(axes[0], data, s_res, s_rate, i_offset, p_lims, 0)
-        plot_T_S_together(axes[1], data, s_res, s_rate, i_offset, p_lims, 1)
+    if len(pfs_to_plot) == 2:
+        plot_T_S_together(axes[0], pfs_to_plot[0], s_res, s_rate, i_offset, 0)
+        plot_T_S_together(axes[1], pfs_to_plot[1], s_res, s_rate, i_offset, 1)
     else:
-        plot_T_S_separate(axes, data, s_res, s_rate, i_offset, p_lims)
+        pf = plot_T_S_separate(axes, pfs_to_plot[0], s_res, s_rate, i_offset)
+        if not isinstance(ss_pfs, type(None)):
+            ss_pfs.append(pf)
     plt.tight_layout(pad=4)
     # Add overall plot title
     fig.suptitle(plt_title)
@@ -231,11 +272,12 @@ def plot_profile(data, s_res, s_rate, i_offset, p_lims=None, filename=None):
         plt.close(fig)
     else:
         plt.show()
+    return ss_pfs
 
 ################################################################################
 
 # Import data from csv
-data = pd.read_csv(pf_file+'.csv')
+# data = pd.read_csv(pf_file+'.csv')
 
 # Set parameters
 sample_res  = 1.5
@@ -246,6 +288,14 @@ if os.path.exists(output_dir):
     shutil.rmtree(output_dir)
 os.makedirs(output_dir)
 
+# Create empty list for dataframes of the subsampled profiles
+ss_pfs = []
+
 # Create frames for the animation
-for i in range(1):#sample_rate):
-    plot_profile(data, sample_res, sample_rate, i, p_lims, filename=(output_dir+'/'+pf_file+'-'+str(i).zfill(3)+'.png'))
+for i in range(sample_rate):
+    ss_pfs = plot_profile(pfs_to_plot, sample_res, sample_rate, i, filename=(output_dir+'/'+frame_file_name+'-'+str(i).zfill(3)+'.png'), ss_pf_list=ss_pfs)
+    # plot_profile(pfs_to_plot, sample_res, sample_rate, i, filename=(output_dir+'/'+pf_file+'-'+str(i).zfill(3)+'.png'))
+
+if not isinstance(ss_pfs, type(None)):
+    ss_pfs = pd.concat(ss_pfs)
+    ss_pfs.to_csv(frame_file_name+'.csv')

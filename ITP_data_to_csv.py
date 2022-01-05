@@ -15,14 +15,15 @@ import mat73 # For reading the ITP `cormat` files
 # Where the ITP data files are stored
 d_source_file_path = "/Users/Grey/Documents/Research/Science_Data/ITPs"
 # Which ITP to use (must be a string)
-ITP_ID = '3'
+ITP_ID = '8'
 # The type of ITP data file to use (only cormat is supported right now)
 ITP_type = 'cormat'
 # The profile number to read data from (must be a 4 digit string)
-pf_no = '1073'
+pf_no = '1301'
 
 # Assemble the data file's path
 pf_file_path = d_source_file_path + '/itp' + ITP_ID + '/itp' + ITP_ID + ITP_type + '/cor' + pf_no + '.mat'
+print('Accessing',pf_file_path)
 
 # Define output directory
 output_dir = '' # same directory as executed from
@@ -49,6 +50,7 @@ def load_cormat_itp(file_path):
         # Down-casts have an issue with the profiler wake, so only take profiles
         #   that were measured as the profiler was moving upwards
         if p0[0] < p0[-1]:
+            print('Skipping down-cast')
             return None
         # else:
         #     print('prof:',prof_no,'goes from',p0[0],'to',p0[-1])

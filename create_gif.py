@@ -20,13 +20,13 @@ https://stackoverflow.com/questions/41228209/making-gif-from-images-using-imagei
 import os
 import imageio
 
-gif_file = 'ITP3-1073.gif'
+gif_file = 'ITP8-1301_v_ITP1-1259.gif'
 png_dir = 'frames'
 print('Saving gif to', gif_file)
 
 
 # To set the frames per second
-fps = 20
+fps = 15
 frame_duration = 1.0 / fps
 
 images = []
