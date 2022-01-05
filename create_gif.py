@@ -26,7 +26,7 @@ print('Saving gif to', gif_file)
 
 
 # To set the frames per second
-fps = 15
+fps = 12
 frame_duration = 1.0 / fps
 
 images = []

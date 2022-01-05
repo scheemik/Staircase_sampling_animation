@@ -49,6 +49,7 @@ if write_ss_to_csv:
 # Set plot mode
 dark_mode = True
 # dark_mode = False
+mrk_size = 100
 
 # Enable dark mode plotting
 if dark_mode:
@@ -62,6 +63,7 @@ else:
     t_clr   = 'lightcoral'
     s_clr   = 'silver'
     ss_clr  = 'k'
+
 ################################################################################
 
 def interp_pts(res, p, t, s):
@@ -153,8 +155,8 @@ def plot_T_S_separate(axes, df, s_res, s_rate, i_offset):
     axes[0].plot(t_ss, -p_ss, color=t_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled T profile')
     axes[1].plot(s_ss, -p_ss, color=s_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled S profile')
     #   Plot points of subsampled profile
-    axes[0].scatter(t_ss, -p_ss, color=t_clr, s=65, marker='.', zorder=3)
-    axes[1].scatter(s_ss, -p_ss, color=s_clr, s=65, marker='.', zorder=3)
+    axes[0].scatter(t_ss, -p_ss, color=t_clr, s=mrk_size, marker='.', zorder=3)
+    axes[1].scatter(s_ss, -p_ss, color=s_clr, s=mrk_size, marker='.', zorder=3)
     # Add subsampled grid
     #   vertical lines
     axes[0].vlines(t_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='--', colors=t_clr, alpha=0.5, zorder=4)
@@ -204,7 +206,7 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset, ax_n):
     # Subsampled profiles
     ss_T_ln = ax.plot(t_ss, -p_ss, color=t_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled T profile')
     #   Plot points of subsampled profile
-    ax.scatter(t_ss, -p_ss, color=t_clr, s=65, marker='.', zorder=3)
+    ax.scatter(t_ss, -p_ss, color=t_clr, s=mrk_size, marker='.', zorder=3)
     # Add subsampled grid
     #   vertical lines
     ax.vlines(t_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='-.', colors=t_clr, alpha=0.5, zorder=4)
@@ -223,7 +225,7 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset, ax_n):
     ax2 = ax.twiny()
     og_S_ln = ax2.plot(s_new, -p_new, color=s_clr, linewidth=2, alpha=0.7, zorder=1, label='Original S profile')
     ss_S_ln = ax2.plot(s_ss, -p_ss, color=s_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled S profile')
-    ax2.scatter(s_ss, -p_ss, color=s_clr, s=65, marker='.', zorder=3)
+    ax2.scatter(s_ss, -p_ss, color=s_clr, s=mrk_size, marker='.', zorder=3)
     ax2.vlines(s_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='-.', colors=s_clr, alpha=0.5, zorder=4)
     #
     # Get all the lines in one legend
@@ -262,9 +264,9 @@ def plot_profile(pfs_to_plot, s_res, s_rate, i_offset, filename=None, ss_pf_list
     ss_pf_list  A blank list in which to store the dataframes of ss profiles
     """
     # Start plot title
-    plt_title = 'Profiles subsampled at '+str(s_res)+'m resolution'
+    plt_title = 'Profiles subsampled at '+str(s_res)+'m resolution, offset: '+str(i_offset).zfill(2)
     # Set figure and axes for plot
-    fig, axes = set_fig_axes([1], [1,1], fig_ratio=0.5, fig_size=1.25, share_x_axis=False, share_y_axis=False)
+    fig, axes = set_fig_axes([1], [1,1], fig_ratio=0.5, fig_size=1.0, share_x_axis=False, share_y_axis=False)
     #
     if len(pfs_to_plot) == 2:
         pf0 = plot_T_S_together(axes[0], pfs_to_plot[0], s_res, s_rate, i_offset, 0)

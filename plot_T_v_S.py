@@ -149,4 +149,4 @@ def plot_T_v_S(csv_file, filename=None):
 ################################################################################
 
 # Run script
-plot_T_v_S('test_2_pfs')
+plot_T_v_S('test_2_pfs', filename='test_2_pfs_T-S.png')
