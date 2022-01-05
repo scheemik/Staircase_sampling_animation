@@ -20,9 +20,11 @@ output_dir = 'frames'
 # Define name of output frames
 frame_file_name = 'test_2_pfs'
 
+# Set parameters
+sample_res  = 1.5
+sample_rate = 40
+
 # Select which profiles to plot (must be a csv)
-
-
 ITP001_1259 = {'ITP_ID': '1',
                'ITP_pf': '1259',
                # 'p_lims': [203, 233]} # Following Shibley et al. 2017 Figure 3b
@@ -33,7 +35,7 @@ ITP008_1301 = {'ITP_ID': '8',
                'p_lims': [240, 250]} # For presentation purposes
 #
 pfs_to_plot = [ITP008_1301, ITP001_1259]
-pfs_to_plot = [ITP001_1259]
+# pfs_to_plot = [ITP001_1259]
 
 # Whether to write out the subsampled points to a csv
 write_ss_to_csv = True
@@ -171,8 +173,8 @@ def plot_T_S_separate(axes, df, s_res, s_rate, i_offset):
     axes[1].set_xlabel(r'Salinity (g/kg)')
     axes[1].legend()
     # Output the dataframe for the subsampled profiles
-    out_dict = {'ITP_ID': df['ITP_ID']*len(t_ss),
-                'ITP_pf': df['ITP_pf']*len(t_ss),
+    out_dict = {'ITP_ID': [df['ITP_ID']]*len(t_ss),
+                'ITP_pf': [df['ITP_pf']]*len(t_ss),
                 'i_offset': [i_offset]*len(t_ss),
                 'temp': t_ss,
                 'salt': s_ss,
@@ -232,6 +234,16 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset, ax_n):
     ax2.set_xlabel(r'Salinity (g/kg)', color=s_clr)
     # Change colors of the vertical axes numbers
     ax2.tick_params(axis='x', colors=s_clr)
+    # Output the dataframe for the subsampled profiles
+    out_dict = {'ITP_ID': [df['ITP_ID']]*len(t_ss),
+                'ITP_pf': [df['ITP_pf']]*len(t_ss),
+                'i_offset': [i_offset]*len(t_ss),
+                'temp': t_ss,
+                'salt': s_ss,
+                'p': p_ss
+                }
+    # Build output data frame
+    return pd.DataFrame(out_dict)
 
 def plot_profile(pfs_to_plot, s_res, s_rate, i_offset, filename=None, ss_pf_list=None):
     """
@@ -255,8 +267,11 @@ def plot_profile(pfs_to_plot, s_res, s_rate, i_offset, filename=None, ss_pf_list
     fig, axes = set_fig_axes([1], [1,1], fig_ratio=0.5, fig_size=1.25, share_x_axis=False, share_y_axis=False)
     #
     if len(pfs_to_plot) == 2:
-        plot_T_S_together(axes[0], pfs_to_plot[0], s_res, s_rate, i_offset, 0)
-        plot_T_S_together(axes[1], pfs_to_plot[1], s_res, s_rate, i_offset, 1)
+        pf0 = plot_T_S_together(axes[0], pfs_to_plot[0], s_res, s_rate, i_offset, 0)
+        pf1 = plot_T_S_together(axes[1], pfs_to_plot[1], s_res, s_rate, i_offset, 1)
+        if not isinstance(ss_pfs, type(None)):
+            ss_pfs.append(pf0)
+            ss_pfs.append(pf1)
     else:
         pf = plot_T_S_separate(axes, pfs_to_plot[0], s_res, s_rate, i_offset)
         if not isinstance(ss_pfs, type(None)):
@@ -275,13 +290,6 @@ def plot_profile(pfs_to_plot, s_res, s_rate, i_offset, filename=None, ss_pf_list
     return ss_pfs
 
 ################################################################################
-
-# Import data from csv
-# data = pd.read_csv(pf_file+'.csv')
-
-# Set parameters
-sample_res  = 1.5
-sample_rate = 40
 
 # Check whether there already exists a directory for the output frames
 if os.path.exists(output_dir):
