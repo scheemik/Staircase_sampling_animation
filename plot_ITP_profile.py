@@ -27,14 +27,22 @@ sample_rate = 40
 # Select which profiles to plot (must be a csv)
 ITP001_1259 = {'ITP_ID': '1',
                'ITP_pf': '1259',
-               # 'p_lims': [203, 233]} # Following Shibley et al. 2017 Figure 3b
-               'p_lims': [210, 220]} # For presentation purposes
+               # 'p_lims': [203, 233], # Following Shibley et al. 2017 Figure 3b
+               'p_lims': [210, 220], # For presentation purposes
+               'interpolate': False,
+               'og_markers': True,
+               'subsample': False,
+               'plot_S': True}
 ITP008_1301 = {'ITP_ID': '8',
                'ITP_pf': '1301',
-               # 'p_lims': [231, 263]} # Following Shibley et al. 2017 Figure 3a
-               'p_lims': [240, 250]} # For presentation purposes
+               # 'p_lims': [231, 263], # Following Shibley et al. 2017 Figure 3a
+               'p_lims': [240, 250], # For presentation purposes
+               'interpolate': True,
+               'og_markers': True,
+               'subsample': False,
+               'plot_S': False}
 #
-pfs_to_plot = [ITP008_1301, ITP001_1259]
+pfs_to_plot = [ITP001_1259, ITP008_1301]
 # pfs_to_plot = [ITP001_1259]
 
 # Whether to write out the subsampled points to a csv
@@ -196,23 +204,37 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset, ax_n):
         data       = data.query(p_lim_low)
         p_lim_high = 'p<'+str(p_lims[1])
         data       = data.query(p_lim_high)
-    # Interpolate the data to the given resolution
-    p_new, t_new, s_new = interp_pts(s_res/s_rate, data['p'], data['temp'], data['salt'])
-    # Subsample the interpolated data
-    p_ss, t_ss, s_ss = p_new[i_offset::s_rate], t_new[i_offset::s_rate], s_new[i_offset::s_rate]
-    #
-    # Plot interpolated profile
+    if df['interpolate']:
+        # Interpolate the data to the given resolution
+        p_new, t_new, s_new = interp_pts(s_res/s_rate, data['p'], data['temp'], data['salt'])
+    else:
+        # Just use the original data
+        p_new, t_new, s_new = data['p'], data['temp'], data['salt']
+    # Plot original profile
     og_T_ln = ax.plot(t_new, -p_new, color=t_clr, linewidth=2, alpha=0.7, zorder=1, label='Original T profile')
-    # Subsampled profiles
-    ss_T_ln = ax.plot(t_ss, -p_ss, color=t_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled T profile')
-    #   Plot points of subsampled profile
-    ax.scatter(t_ss, -p_ss, color=t_clr, s=mrk_size, marker='.', zorder=3)
-    # Add subsampled grid
-    #   vertical lines
-    ax.vlines(t_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='-.', colors=t_clr, alpha=0.5, zorder=4)
-    #   horizontal lines
-    ax.hlines(-p_ss, min(t_new), max(t_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
-    # ax.hlines(-p_ss, min(s_new), max(s_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
+    # Plot markers for all points in original profile
+    if df['og_markers']:
+        ax.scatter(t_new, -p_new, color=t_clr, s=mrk_size, marker='.', zorder=1)
+    # Add subsampled profile?
+    if df['subsample'] and df['interpolate']:
+        # Subsample the interpolated data
+        p_ss, t_ss, s_ss = p_new[i_offset::s_rate], t_new[i_offset::s_rate], s_new[i_offset::s_rate]
+        # Subsampled profiles
+        ss_T_ln = ax.plot(t_ss, -p_ss, color=t_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled T profile')
+        #   Plot points of subsampled profile
+        ax.scatter(t_ss, -p_ss, color=t_clr, s=mrk_size, marker='.', zorder=3)
+        #
+        # Add subsampled grid
+        #   vertical lines
+        ax.vlines(t_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='-.', colors=t_clr, alpha=0.5, zorder=4)
+        #   horizontal lines
+        ax.hlines(-p_ss, min(t_new), max(t_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
+        # ax.hlines(-p_ss, min(s_new), max(s_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
+        # Get all the lines in one legend
+        lines  = og_T_ln + ss_T_ln
+    else:
+        # Get all the lines in one legend
+        lines  = og_T_ln
     # Set titles and labels
     ax.set_title('ITP'+df['ITP_ID']+' profile '+df['ITP_pf'])
     if ax_n == 0:
@@ -221,31 +243,52 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset, ax_n):
     # Change colors of the vertical axes numbers
     ax.tick_params(axis='x', colors=t_clr)
     #
-    # Create twin axes to plot T and S ontop of one another
-    ax2 = ax.twiny()
-    og_S_ln = ax2.plot(s_new, -p_new, color=s_clr, linewidth=2, alpha=0.7, zorder=1, label='Original S profile')
-    ss_S_ln = ax2.plot(s_ss, -p_ss, color=s_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled S profile')
-    ax2.scatter(s_ss, -p_ss, color=s_clr, s=mrk_size, marker='.', zorder=3)
-    ax2.vlines(s_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='-.', colors=s_clr, alpha=0.5, zorder=4)
+    # Plot the salinity profile on top?
+    if df['plot_S']:
+        # Create twin axes to plot T and S ontop of one another
+        ax2 = ax.twiny()
+        # Plot original profile
+        og_S_ln = ax2.plot(s_new, -p_new, color=s_clr, linewidth=2, alpha=0.7, zorder=1, label='Original S profile')
+        # Plot markers for all points in original profile
+        if df['og_markers']:
+            ax2.scatter(s_new, -p_new, color=s_clr, s=mrk_size, marker='.', zorder=1)
+        # Add subsampled profile?
+        if df['subsample'] and df['interpolate']:
+            ss_S_ln = ax2.plot(s_ss, -p_ss, color=s_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled S profile')
+            ax2.scatter(s_ss, -p_ss, color=s_clr, s=mrk_size, marker='.', zorder=3)
+            ax2.vlines(s_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='-.', colors=s_clr, alpha=0.5, zorder=4)
+            # Get all the lines in one legend
+            lines  += og_S_ln + ss_S_ln
+        else:
+            # Get all the lines in one legend
+            lines  += og_S_ln
+        # Set salinity labels and colors
+        ax2.set_xlabel(r'Salinity (g/kg)', color=s_clr)
+        # Change colors of the vertical axes numbers
+        ax2.tick_params(axis='x', colors=s_clr)
+        #
     #
     # Get all the lines in one legend
-    lines  = og_T_ln + og_S_ln + ss_T_ln + ss_S_ln
     labels = [l.get_label() for l in lines]
-    ax.legend(lines, labels)
+    if len(labels) > 1:
+        ax.legend(lines, labels)
     #
-    ax2.set_xlabel(r'Salinity (g/kg)', color=s_clr)
-    # Change colors of the vertical axes numbers
-    ax2.tick_params(axis='x', colors=s_clr)
-    # Output the dataframe for the subsampled profiles
-    out_dict = {'ITP_ID': [df['ITP_ID']]*len(t_ss),
-                'ITP_pf': [df['ITP_pf']]*len(t_ss),
-                'i_offset': [i_offset]*len(t_ss),
-                'temp': t_ss,
-                'salt': s_ss,
-                'p': p_ss
-                }
-    # Build output data frame
-    return pd.DataFrame(out_dict)
+
+    if df['subsample']:
+        if df['plot_S']:
+            # Output the dataframe for the subsampled profiles
+            out_dict = {'ITP_ID': [df['ITP_ID']]*len(t_ss),
+                        'ITP_pf': [df['ITP_pf']]*len(t_ss),
+                        'i_offset': [i_offset]*len(t_ss),
+                        'temp': t_ss,
+                        'salt': s_ss,
+                        'p': p_ss
+                        }
+            # Build output data frame
+            return pd.DataFrame(out_dict)
+        #
+    #
+    return None
 
 def plot_profile(pfs_to_plot, s_res, s_rate, i_offset, filename=None, ss_pf_list=None):
     """
@@ -302,10 +345,10 @@ os.makedirs(output_dir)
 ss_pfs = []
 
 # Create frames for the animation
-for i in range(sample_rate):
+for i in range(1):#sample_rate):
     ss_pfs = plot_profile(pfs_to_plot, sample_res, sample_rate, i, filename=(output_dir+'/'+frame_file_name+'-'+str(i).zfill(3)+'.png'), ss_pf_list=ss_pfs)
     # plot_profile(pfs_to_plot, sample_res, sample_rate, i, filename=(output_dir+'/'+pf_file+'-'+str(i).zfill(3)+'.png'))
 
-if not isinstance(ss_pfs, type(None)):
-    ss_pfs = pd.concat(ss_pfs)
-    ss_pfs.to_csv(frame_file_name+'.csv')
+# if not isinstance(ss_pfs, type(None)):
+#     ss_pfs = pd.concat(ss_pfs)
+#     ss_pfs.to_csv(frame_file_name+'.csv')
