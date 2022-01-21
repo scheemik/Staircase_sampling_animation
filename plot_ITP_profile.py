@@ -26,8 +26,21 @@ sample_res  = 1.5
 sample_rate = 40
 
 # Select which profiles to plot (must be a csv)
-ITP001_1259 = {'ITP_ID': '1',
-               'ITP_pf': '1259',
+AIDJEX_BF_001 = {'SOURCE': 'AIDJEX',
+                 'INSTRMT': '1',
+                 'PROF_NO': '1259',
+                 'inset': [210, 220],
+                 # 'p_lims': [203, 233], # Following Shibley et al. 2017 Figure 3b
+                 # 'p_lims': [210, 220], # For presentation purposes
+                 'p_lims': None,
+                 'interpolate': False,
+                 'og_markers': False,
+                 'subsample': False,
+                 'plot_S': False}
+
+ITP001_1259 = {'SOURCE': 'ITP',
+               'INSTRMT': '1',
+               'PROF_NO': '1259',
                'inset': [210, 220],
                # 'p_lims': [203, 233], # Following Shibley et al. 2017 Figure 3b
                # 'p_lims': [210, 220], # For presentation purposes
@@ -37,8 +50,9 @@ ITP001_1259 = {'ITP_ID': '1',
                'subsample': False,
                'plot_S': False}
 
-ITP008_1301 = {'ITP_ID': '8',
-               'ITP_pf': '1301',
+ITP008_1301 = {'SOURCE': 'ITP',
+               'INSTRMT': '8',
+               'PROF_NO': '1301',
                'inset': [240, 250],
                # 'p_lims': [231, 263], # Following Shibley et al. 2017 Figure 3a
                # 'p_lims': [240, 250], # For presentation purposes
@@ -185,7 +199,7 @@ def add_inset_to_axis(ax, x_arr, y_arr, clr, inset_ylims, inset_pos, zoom_locs=[
 
 def plot_T_S_separate(axes, df, s_res, s_rate, i_offset):
     # Import data from csv
-    csv  = 'ITP'+df['ITP_ID']+'cormat'+df['ITP_pf']+'.csv'
+    csv  = 'ITP'+df['SOURCE']+'cormat'+df['PROF_NO']+'.csv'
     data = pd.read_csv(csv)
     p_lims = df['p_lims']
     # Set limits
@@ -217,17 +231,18 @@ def plot_T_S_separate(axes, df, s_res, s_rate, i_offset):
     axes[1].hlines(-p_ss, min(s_new), max(s_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
     #
     # Set titles and labels
-    axes[0].set_title('ITP'+df['ITP_ID']+' profile '+df['ITP_pf']+' Temperature')
+    axes[0].set_title(df['SOURCE']+'-'+df['INSTRMT']+' profile '+df['PROF_NO']+' Temperature')
     axes[0].set_ylabel('Pressure (dbar)')
     axes[0].set_xlabel(r'Temperature ($^\circ$C)')
     axes[0].legend()
     #
-    axes[1].set_title('ITP'+df['ITP_ID']+' profile '+df['ITP_pf']+' Salinity')
+    axes[1].set_title(df['SOURCE']+'-'+df['INSTRMT']+' profile '+df['PROF_NO']+' Salinity')
     axes[1].set_xlabel(r'Salinity (g/kg)')
     axes[1].legend()
     # Output the dataframe for the subsampled profiles
-    out_dict = {'ITP_ID': [df['ITP_ID']]*len(t_ss),
-                'ITP_pf': [df['ITP_pf']]*len(t_ss),
+    out_dict = {'SOURCE': [df['SOURCE']]*len(t_ss),
+                'INSTRMT': [df['INSTRMT']]*len(t_ss),
+                'PROF_NO': [df['PROF_NO']]*len(t_ss),
                 'i_offset': [i_offset]*len(t_ss),
                 'temp': t_ss,
                 'salt': s_ss,
@@ -249,7 +264,7 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset):
     i_offset    an integer for the offset in the vertical of the sub-sampling
     """
     # Import data from csv
-    csv  = 'ITP'+df['ITP_ID']+'cormat'+df['ITP_pf']+'.csv'
+    csv  = df['SOURCE']+'-'+df['INSTRMT']+'_'+df['PROF_NO']+'.csv'
     data = pd.read_csv(csv)
     p_lims = df['p_lims']
     # Set limits
@@ -294,7 +309,7 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset):
     if not isinstance(df['inset'], type(None)):
         add_inset_to_axis(ax, t_new.values, p_new.values, t_clr, df['inset'], [0.25, 0.2, 0.4, 0.4], zoom_locs=[2,1])
     # Set titles and labels
-    ax.set_title('ITP'+df['ITP_ID']+' profile '+df['ITP_pf'])
+    ax.set_title(df['SOURCE']+df['INSTRMT']+' profile '+df['PROF_NO'])
     y_label = 'Pressure (dbar)'
     ax.set_xlabel(r'Temperature ($^\circ$C)', color=t_clr)
     # Change colors of the vertical axes numbers
@@ -334,8 +349,9 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset):
     if df['subsample']:
         if df['plot_S']:
             # Output the dataframe for the subsampled profiles
-            out_dict = {'ITP_ID': [df['ITP_ID']]*len(t_ss),
-                        'ITP_pf': [df['ITP_pf']]*len(t_ss),
+            out_dict = {'SOURCE': [df['SOURCE']]*len(t_ss),
+                        'INSTRMT': [df['INSTRMT']]*len(t_ss),
+                        'PROF_NO': [df['PROF_NO']]*len(t_ss),
                         'i_offset': [i_offset]*len(t_ss),
                         'temp': t_ss,
                         'salt': s_ss,

@@ -28,7 +28,7 @@ print('Accessing',pf_file_path)
 # Define output directory
 output_dir = '' # same directory as executed from
 # Define output file name
-filename = 'ITP' + ITP_ID + ITP_type + pf_no + '.csv'
+filename = 'ITP-' + ITP_ID + '_' + pf_no + '.csv'
 
 ################################################################################
 
