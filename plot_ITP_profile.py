@@ -7,6 +7,7 @@ made by: Mikhail Schee (January 2022)
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import mpl_toolkits.axes_grid1.inset_locator as plt_inset
 import pandas as pd
 import mat73 # For reading the ITP `cormat` files
 from scipy import interpolate # For interpolating data
@@ -27,18 +28,23 @@ sample_rate = 40
 # Select which profiles to plot (must be a csv)
 ITP001_1259 = {'ITP_ID': '1',
                'ITP_pf': '1259',
+               'inset': [210, 220],
                # 'p_lims': [203, 233], # Following Shibley et al. 2017 Figure 3b
-               'p_lims': [210, 220], # For presentation purposes
+               # 'p_lims': [210, 220], # For presentation purposes
+               'p_lims': None,
                'interpolate': False,
-               'og_markers': True,
+               'og_markers': False,
                'subsample': False,
-               'plot_S': True}
+               'plot_S': False}
+
 ITP008_1301 = {'ITP_ID': '8',
                'ITP_pf': '1301',
+               'inset': [240, 250],
                # 'p_lims': [231, 263], # Following Shibley et al. 2017 Figure 3a
-               'p_lims': [240, 250], # For presentation purposes
-               'interpolate': True,
-               'og_markers': True,
+               # 'p_lims': [240, 250], # For presentation purposes
+               'p_lims': None,
+               'interpolate': False,
+               'og_markers': False,
                'subsample': False,
                'plot_S': False}
 #
@@ -46,7 +52,7 @@ pfs_to_plot = [ITP001_1259, ITP008_1301]
 # pfs_to_plot = [ITP001_1259]
 
 # Whether to write out the subsampled points to a csv
-write_ss_to_csv = True
+write_ss_to_csv = False
 
 if write_ss_to_csv:
     # Check whether there already exists a csv for the
@@ -97,6 +103,8 @@ def interp_pts(res, p, t, s):
     s_new = salt1(p_new)
     return p_new, t_new, s_new
 
+################################################################################
+
 def set_fig_axes(heights, widths, fig_ratio=0.5, fig_size=1, share_x_axis=None, share_y_axis=None, prjctn=None):
     """
     Creates fig and axes objects based on desired heights and widths of subplots
@@ -139,6 +147,41 @@ def set_fig_axes(heights, widths, fig_ratio=0.5, fig_size=1, share_x_axis=None, 
     else:
         axes.ticklabel_format(style='sci', scilimits=(-3,3), useMathText=True)
     return fig, axes
+
+################################################################################
+
+def add_inset_to_axis(ax, x_arr, y_arr, clr, inset_ylims, inset_pos, zoom_locs=[2,1]):
+    """
+    Adds an inset to a given axis
+
+    ax              main axis on which to add inset
+    x_arr           horizontal axis of data
+    y_arr           vertical axis of data
+    clr             color which to draw the line on the inset
+    inset_ylims     array of y limits for the inset [y_min, y_max]
+    inset_pos       array of positions for inset in units of the normalized
+                    coordinate of the parent axis:
+                        [left_edge, bottom_edge, width, height]
+    zoom_locs       array of 2 corners to draw lines from:
+                        [1=tr, 2=tl, 3=bl, 4=br]
+    """
+    # Create inset axes using provided position
+    ax_in = ax.inset_axes(inset_pos)
+    # Mark inset box on main axes and draw zoom lines
+    #   loc1/loc2 are corners to draw lines from [1=tr, 2=tl, 3=bl, 4=br]
+    plt_inset.mark_inset(ax, ax_in, loc1=zoom_locs[0], loc2=zoom_locs[1], facecolor="none", edgecolor='0.5')
+    ax_in.plot(x_arr, -y_arr, color=clr)
+    # Restrict limits of inset
+    ax_in.set_ylim([-inset_ylims[1], -inset_ylims[0]])
+    df = pd.DataFrame()
+    df = df.assign(x=x_arr, y=y_arr)
+    x_arr_in = df[(df['y'] > inset_ylims[0]) & (df['y'] < inset_ylims[1])].x
+    ax_in.set_xlim([min(x_arr_in), max(x_arr_in)])
+    # Fix the number of ticks on the inset axes
+    ax_in.set_xticks(np.linspace(min(x_arr_in), max(x_arr_in), 2))
+    ax_in.set_yticks(np.linspace(-inset_ylims[0], -inset_ylims[1], 3))
+
+################################################################################
 
 def plot_T_S_separate(axes, df, s_res, s_rate, i_offset):
     # Import data from csv
@@ -193,7 +236,18 @@ def plot_T_S_separate(axes, df, s_res, s_rate, i_offset):
     # Build output data frame
     return pd.DataFrame(out_dict)
 
-def plot_T_S_together(ax, df, s_res, s_rate, i_offset, ax_n):
+################################################################################
+
+def plot_T_S_together(ax, df, s_res, s_rate, i_offset):
+    """
+    Function to make a profile plot on the given axis
+
+    ax          the axis on which to plot
+    df          a pandas dataframe containing data and parameters for the plot
+    s_res       the sub-sampling resolution
+    s_rate      the sub-sampling rate
+    i_offset    an integer for the offset in the vertical of the sub-sampling
+    """
     # Import data from csv
     csv  = 'ITP'+df['ITP_ID']+'cormat'+df['ITP_pf']+'.csv'
     data = pd.read_csv(csv)
@@ -235,10 +289,13 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset, ax_n):
     else:
         # Get all the lines in one legend
         lines  = og_T_ln
+    #
+    # Add inset?
+    if not isinstance(df['inset'], type(None)):
+        add_inset_to_axis(ax, t_new.values, p_new.values, t_clr, df['inset'], [0.25, 0.2, 0.4, 0.4], zoom_locs=[2,1])
     # Set titles and labels
     ax.set_title('ITP'+df['ITP_ID']+' profile '+df['ITP_pf'])
-    if ax_n == 0:
-        ax.set_ylabel('Pressure (dbar)')
+    y_label = 'Pressure (dbar)'
     ax.set_xlabel(r'Temperature ($^\circ$C)', color=t_clr)
     # Change colors of the vertical axes numbers
     ax.tick_params(axis='x', colors=t_clr)
@@ -285,10 +342,12 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset, ax_n):
                         'p': p_ss
                         }
             # Build output data frame
-            return pd.DataFrame(out_dict)
+            return y_label, pd.DataFrame(out_dict)
         #
     #
-    return None
+    return y_label, None
+
+################################################################################
 
 def plot_profile(pfs_to_plot, s_res, s_rate, i_offset, filename=None, ss_pf_list=None):
     """
@@ -309,16 +368,18 @@ def plot_profile(pfs_to_plot, s_res, s_rate, i_offset, filename=None, ss_pf_list
     # Start plot title
     plt_title = 'Profiles subsampled at '+str(s_res)+'m resolution, offset: '+str(i_offset).zfill(2)
     # Set figure and axes for plot
-    fig, axes = set_fig_axes([1], [1,1], fig_ratio=0.5, fig_size=1.0, share_x_axis=False, share_y_axis=False)
+    fig, axes = set_fig_axes([1], [1,1], fig_ratio=0.7, fig_size=1.0, share_x_axis=False, share_y_axis=False)
     #
     if len(pfs_to_plot) == 2:
-        pf0 = plot_T_S_together(axes[0], pfs_to_plot[0], s_res, s_rate, i_offset, 0)
-        pf1 = plot_T_S_together(axes[1], pfs_to_plot[1], s_res, s_rate, i_offset, 1)
+        y_label0, pf0 = plot_T_S_together(axes[0], pfs_to_plot[0], s_res, s_rate, i_offset)
+        y_label1, pf1 = plot_T_S_together(axes[1], pfs_to_plot[1], s_res, s_rate, i_offset)
+        axes[0].set_ylabel(y_label0)
         if not isinstance(ss_pfs, type(None)):
             ss_pfs.append(pf0)
             ss_pfs.append(pf1)
     else:
-        pf = plot_T_S_separate(axes, pfs_to_plot[0], s_res, s_rate, i_offset)
+        y_label, pf = plot_T_S_separate(axes, pfs_to_plot[0], s_res, s_rate, i_offset)
+        axes.set_ylabel(y_label)
         if not isinstance(ss_pfs, type(None)):
             ss_pfs.append(pf)
     plt.tight_layout(pad=4)
