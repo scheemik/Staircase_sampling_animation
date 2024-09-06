@@ -19,54 +19,90 @@ import shutil # For removing old versions of the output directory
 output_dir = 'frames'
 
 # Define name of output frames
-frame_file_name = 'test_2_pfs'
+frame_file_name = 'ITP8-1301_v_ITP1-1259_T-S'
 
 # Set parameters
 sample_res  = 1.5
 sample_rate = 40
+mkr_style   = '.'
+# mkr_style   = 'x'
+mkr_ln_wd   = 0.5
+mrk_size = 100
+small_mrk_size = 5
 
 # Select which profiles to plot (must be a csv)
 AIDJEX_BF_001 = {'SOURCE': 'AIDJEX',
-                 'INSTRMT': '1',
-                 'PROF_NO': '1259',
-                 'inset': [210, 220],
+                 'INSTRMT': 'BlueFox',
+                 'PROF_NO': '001',
+                 'inset': [220, 230],
+                 'inset_markers': True,
+                 'legend': False,
                  # 'p_lims': [203, 233], # Following Shibley et al. 2017 Figure 3b
                  # 'p_lims': [210, 220], # For presentation purposes
                  'p_lims': None,
                  'interpolate': False,
                  'og_markers': False,
                  'subsample': False,
+                 'ss_grid_vert': False,
+                 'ss_grid_hori': False,
                  'plot_S': False}
 
 ITP001_1259 = {'SOURCE': 'ITP',
                'INSTRMT': '1',
                'PROF_NO': '1259',
-               'inset': [210, 220],
+               'inset': [220, 230],
+               # 'inset': None,
+               'inset_markers': True,
+               'legend': False,
                # 'p_lims': [203, 233], # Following Shibley et al. 2017 Figure 3b
-               # 'p_lims': [210, 220], # For presentation purposes
+               # 'p_lims': [220, 230], # For presentation purposes
                'p_lims': None,
                'interpolate': False,
                'og_markers': False,
                'subsample': False,
+               'ss_grid_vert': False,
+               'ss_grid_hori': False,
                'plot_S': False}
+
+ITP001_1259 = {'SOURCE': 'ITP',
+               'INSTRMT': '1',
+               'PROF_NO': '1259',
+               # 'inset': [220, 230],
+               'inset': None,
+               'inset_markers': False,
+               'legend': False,
+               # 'p_lims': [203, 233], # Following Shibley et al. 2017 Figure 3b
+               'p_lims': [220, 230], # For presentation purposes
+               # 'p_lims': None,
+               'interpolate': True,
+               'og_markers': False,
+               'subsample': True,
+               'ss_grid_vert': True,
+               'ss_grid_hori': True,
+               'plot_S': True}
 
 ITP008_1301 = {'SOURCE': 'ITP',
                'INSTRMT': '8',
                'PROF_NO': '1301',
-               'inset': [240, 250],
+               # 'inset': [240, 250],
+               'inset': None,
+               'inset_markers': False,
+               'legend': False,
                # 'p_lims': [231, 263], # Following Shibley et al. 2017 Figure 3a
-               # 'p_lims': [240, 250], # For presentation purposes
-               'p_lims': None,
-               'interpolate': False,
+               'p_lims': [220, 230], # For presentation purposes
+               # 'p_lims': None,
+               'interpolate': True,
                'og_markers': False,
-               'subsample': False,
-               'plot_S': False}
+               'subsample': True,
+               'ss_grid_vert': True,
+               'ss_grid_hori': True,
+               'plot_S': True}
 #
+# pfs_to_plot = [ITP001_1259, AIDJEX_BF_001]
 pfs_to_plot = [ITP001_1259, ITP008_1301]
-# pfs_to_plot = [ITP001_1259]
 
 # Whether to write out the subsampled points to a csv
-write_ss_to_csv = False
+write_ss_to_csv = True
 
 if write_ss_to_csv:
     # Check whether there already exists a csv for the
@@ -77,7 +113,6 @@ if write_ss_to_csv:
 # Set plot mode
 dark_mode = True
 # dark_mode = False
-mrk_size = 100
 
 # Enable dark mode plotting
 if dark_mode:
@@ -89,7 +124,7 @@ if dark_mode:
 else:
     std_clr = 'k'
     t_clr   = 'lightcoral'
-    s_clr   = 'silver'
+    s_clr   = 'slategrey'
     ss_clr  = 'k'
 
 ################################################################################
@@ -164,7 +199,7 @@ def set_fig_axes(heights, widths, fig_ratio=0.5, fig_size=1, share_x_axis=None, 
 
 ################################################################################
 
-def add_inset_to_axis(ax, x_arr, y_arr, clr, inset_ylims, inset_pos, zoom_locs=[2,1]):
+def add_inset_to_axis(ax, x_arr, y_arr, clr, inset_mrks, inset_ylims, inset_pos, zoom_locs=[2,1]):
     """
     Adds an inset to a given axis
 
@@ -172,6 +207,7 @@ def add_inset_to_axis(ax, x_arr, y_arr, clr, inset_ylims, inset_pos, zoom_locs=[
     x_arr           horizontal axis of data
     y_arr           vertical axis of data
     clr             color which to draw the line on the inset
+    inset_mrks      True or False as to whether to include markers on the inset
     inset_ylims     array of y limits for the inset [y_min, y_max]
     inset_pos       array of positions for inset in units of the normalized
                     coordinate of the parent axis:
@@ -184,7 +220,11 @@ def add_inset_to_axis(ax, x_arr, y_arr, clr, inset_ylims, inset_pos, zoom_locs=[
     # Mark inset box on main axes and draw zoom lines
     #   loc1/loc2 are corners to draw lines from [1=tr, 2=tl, 3=bl, 4=br]
     plt_inset.mark_inset(ax, ax_in, loc1=zoom_locs[0], loc2=zoom_locs[1], facecolor="none", edgecolor='0.5')
-    ax_in.plot(x_arr, -y_arr, color=clr)
+    # Plot line on inset
+    ax_in.plot(x_arr, -y_arr, color=clr, zorder=1)
+    # Plot markers on inset
+    if inset_mrks:
+        ax_in.scatter(x_arr, -y_arr, color=std_clr, s=small_mrk_size, marker=mkr_style, linewidth=mkr_ln_wd, zorder=3)
     # Restrict limits of inset
     ax_in.set_ylim([-inset_ylims[1], -inset_ylims[0]])
     df = pd.DataFrame()
@@ -199,7 +239,7 @@ def add_inset_to_axis(ax, x_arr, y_arr, clr, inset_ylims, inset_pos, zoom_locs=[
 
 def plot_T_S_separate(axes, df, s_res, s_rate, i_offset):
     # Import data from csv
-    csv  = 'ITP'+df['SOURCE']+'cormat'+df['PROF_NO']+'.csv'
+    csv  = df['SOURCE']+'-'+df['INSTRMT']+'_'+df['PROF_NO']+'.csv'
     data = pd.read_csv(csv)
     p_lims = df['p_lims']
     # Set limits
@@ -220,8 +260,8 @@ def plot_T_S_separate(axes, df, s_res, s_rate, i_offset):
     axes[0].plot(t_ss, -p_ss, color=t_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled T profile')
     axes[1].plot(s_ss, -p_ss, color=s_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled S profile')
     #   Plot points of subsampled profile
-    axes[0].scatter(t_ss, -p_ss, color=t_clr, s=mrk_size, marker='.', zorder=3)
-    axes[1].scatter(s_ss, -p_ss, color=s_clr, s=mrk_size, marker='.', zorder=3)
+    axes[0].scatter(t_ss, -p_ss, color=t_clr, s=mrk_size, marker=mkr_style, zorder=3)
+    axes[1].scatter(s_ss, -p_ss, color=s_clr, s=mrk_size, marker=mkr_style, zorder=3)
     # Add subsampled grid
     #   vertical lines
     axes[0].vlines(t_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='--', colors=t_clr, alpha=0.5, zorder=4)
@@ -280,25 +320,27 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset):
         # Just use the original data
         p_new, t_new, s_new = data['p'], data['temp'], data['salt']
     # Plot original profile
-    og_T_ln = ax.plot(t_new, -p_new, color=t_clr, linewidth=2, alpha=0.7, zorder=1, label='Original T profile')
+    og_T_ln = ax.plot(t_new, p_new, color=t_clr, linewidth=2, alpha=0.7, zorder=1, label='Original T profile')
     # Plot markers for all points in original profile
     if df['og_markers']:
-        ax.scatter(t_new, -p_new, color=t_clr, s=mrk_size, marker='.', zorder=1)
+        ax.scatter(t_new, p_new, color=t_clr, s=mrk_size, marker=mkr_style, zorder=1)
     # Add subsampled profile?
     if df['subsample'] and df['interpolate']:
+        if isinstance(i_offset, type(None)):
+            i_offset = 0
         # Subsample the interpolated data
         p_ss, t_ss, s_ss = p_new[i_offset::s_rate], t_new[i_offset::s_rate], s_new[i_offset::s_rate]
         # Subsampled profiles
-        ss_T_ln = ax.plot(t_ss, -p_ss, color=t_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled T profile')
+        ss_T_ln = ax.plot(t_ss, p_ss, color=t_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled T profile')
         #   Plot points of subsampled profile
-        ax.scatter(t_ss, -p_ss, color=t_clr, s=mrk_size, marker='.', zorder=3)
+        ax.scatter(t_ss, p_ss, color=t_clr, s=mrk_size, marker=mkr_style, zorder=3)
         #
-        # Add subsampled grid
-        #   vertical lines
-        ax.vlines(t_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='-.', colors=t_clr, alpha=0.5, zorder=4)
-        #   horizontal lines
-        ax.hlines(-p_ss, min(t_new), max(t_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
-        # ax.hlines(-p_ss, min(s_new), max(s_new), linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
+        # Add subsampled grid vertical lines
+        if df['ss_grid_vert']:
+            ax.vlines(t_ss, p_lims[1], p_lims[0], linewidths=1, linestyles='-.', colors=t_clr, alpha=0.5, zorder=4)
+        t_span = max(t_new) - min(t_new)
+        t_min  = min(t_new) - (1/15)*t_span
+        t_max  = max(t_new) + (1/15)*t_span
         # Get all the lines in one legend
         lines  = og_T_ln + ss_T_ln
     else:
@@ -307,9 +349,9 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset):
     #
     # Add inset?
     if not isinstance(df['inset'], type(None)):
-        add_inset_to_axis(ax, t_new.values, p_new.values, t_clr, df['inset'], [0.25, 0.2, 0.4, 0.4], zoom_locs=[2,1])
+        add_inset_to_axis(ax, t_new.values, p_new.values, t_clr, df['inset_markers'], df['inset'], [0.25, 0.2, 0.4, 0.4], zoom_locs=[2,1])
     # Set titles and labels
-    ax.set_title(df['SOURCE']+df['INSTRMT']+' profile '+df['PROF_NO'])
+    ax.set_title(df['SOURCE']+' '+df['INSTRMT']+' profile '+df['PROF_NO'])
     y_label = 'Pressure (dbar)'
     ax.set_xlabel(r'Temperature ($^\circ$C)', color=t_clr)
     # Change colors of the vertical axes numbers
@@ -320,15 +362,16 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset):
         # Create twin axes to plot T and S ontop of one another
         ax2 = ax.twiny()
         # Plot original profile
-        og_S_ln = ax2.plot(s_new, -p_new, color=s_clr, linewidth=2, alpha=0.7, zorder=1, label='Original S profile')
+        og_S_ln = ax2.plot(s_new, p_new, color=s_clr, linewidth=2, alpha=0.7, zorder=1, label='Original S profile')
         # Plot markers for all points in original profile
         if df['og_markers']:
-            ax2.scatter(s_new, -p_new, color=s_clr, s=mrk_size, marker='.', zorder=1)
+            ax2.scatter(s_new, p_new, color=s_clr, s=mrk_size, marker=mkr_style, zorder=1)
         # Add subsampled profile?
         if df['subsample'] and df['interpolate']:
-            ss_S_ln = ax2.plot(s_ss, -p_ss, color=s_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled S profile')
-            ax2.scatter(s_ss, -p_ss, color=s_clr, s=mrk_size, marker='.', zorder=3)
-            ax2.vlines(s_ss, -p_lims[1], -p_lims[0], linewidths=1, linestyles='-.', colors=s_clr, alpha=0.5, zorder=4)
+            ss_S_ln = ax2.plot(s_ss, p_ss, color=s_clr, linestyle='--', alpha=1, zorder=3, label='Subsampled S profile')
+            ax2.scatter(s_ss, p_ss, color=s_clr, s=mrk_size, marker=mkr_style, zorder=3)
+            if df['ss_grid_vert']:
+                ax2.vlines(s_ss, p_lims[1], p_lims[0], linewidths=1, linestyles='-.', colors=s_clr, alpha=0.5, zorder=4)
             # Get all the lines in one legend
             lines  += og_S_ln + ss_S_ln
         else:
@@ -339,11 +382,20 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset):
         # Change colors of the vertical axes numbers
         ax2.tick_params(axis='x', colors=s_clr)
         #
+        # Set limits on temperature and salinity axes so the profiles don't overlap
+        t_max = max(t_new)+(1/6)*t_span
+        ax.set_xlim([t_min, t_max])
+        s_span = max(s_new) - min(s_new)
+        ax2.set_xlim([min(s_new)-(1/6)*s_span, max(s_new) + (1/15)*s_span])
     #
+    #   horizontal lines
+    if df['ss_grid_hori']:
+        ax.hlines(p_ss, t_min, t_max, linewidths=1, linestyles=':', colors=ss_clr, alpha=0.5, zorder=4)
     # Get all the lines in one legend
-    labels = [l.get_label() for l in lines]
-    if len(labels) > 1:
-        ax.legend(lines, labels)
+    if df['legend']:
+        labels = [l.get_label() for l in lines]
+        if len(labels) > 1:
+            ax.legend(lines, labels)
     #
 
     if df['subsample']:
@@ -365,7 +417,7 @@ def plot_T_S_together(ax, df, s_res, s_rate, i_offset):
 
 ################################################################################
 
-def plot_profile(pfs_to_plot, s_res, s_rate, i_offset, filename=None, ss_pf_list=None):
+def plot_profile(pfs_to_plot, s_res, s_rate, i_offset=None, filename=None, ss_pf_list=None):
     """
     Plots the Temperature vs Salinity data
 
@@ -382,20 +434,25 @@ def plot_profile(pfs_to_plot, s_res, s_rate, i_offset, filename=None, ss_pf_list
     ss_pf_list  A blank list in which to store the dataframes of ss profiles
     """
     # Start plot title
-    plt_title = 'Profiles subsampled at '+str(s_res)+'m resolution, offset: '+str(i_offset).zfill(2)
+    plt_title = 'Profiles subsampled at '+str(s_res)+'m resolution'
+    if not isinstance(i_offset, type(None)):
+        plt_title += ', offset: '+str(i_offset).zfill(2)
     # Set figure and axes for plot
-    fig, axes = set_fig_axes([1], [1,1], fig_ratio=0.7, fig_size=1.0, share_x_axis=False, share_y_axis=False)
+    fig, axes = set_fig_axes([1], [1,1], fig_ratio=0.5, fig_size=1.0, share_x_axis=False, share_y_axis=False)
     #
     if len(pfs_to_plot) == 2:
         y_label0, pf0 = plot_T_S_together(axes[0], pfs_to_plot[0], s_res, s_rate, i_offset)
         y_label1, pf1 = plot_T_S_together(axes[1], pfs_to_plot[1], s_res, s_rate, i_offset)
         axes[0].set_ylabel(y_label0)
+        axes[0].invert_yaxis()
+        axes[1].invert_yaxis()
         if not isinstance(ss_pfs, type(None)):
             ss_pfs.append(pf0)
             ss_pfs.append(pf1)
     else:
         y_label, pf = plot_T_S_separate(axes, pfs_to_plot[0], s_res, s_rate, i_offset)
         axes.set_ylabel(y_label)
+        axes.invert_yaxis()
         if not isinstance(ss_pfs, type(None)):
             ss_pfs.append(pf)
     plt.tight_layout(pad=4)
@@ -403,7 +460,7 @@ def plot_profile(pfs_to_plot, s_res, s_rate, i_offset, filename=None, ss_pf_list
     fig.suptitle(plt_title)
     #
     if filename != None:
-        plt.savefig(filename, dpi=400)
+        plt.savefig(filename, dpi=400, transparent=True)
         # Close the figure after saving to avoid memory leaks when making many
         #   figures in a loop
         plt.close(fig)
@@ -422,10 +479,10 @@ os.makedirs(output_dir)
 ss_pfs = []
 
 # Create frames for the animation
-for i in range(1):#sample_rate):
-    ss_pfs = plot_profile(pfs_to_plot, sample_res, sample_rate, i, filename=(output_dir+'/'+frame_file_name+'-'+str(i).zfill(3)+'.png'), ss_pf_list=ss_pfs)
-    # plot_profile(pfs_to_plot, sample_res, sample_rate, i, filename=(output_dir+'/'+pf_file+'-'+str(i).zfill(3)+'.png'))
+for i in range(sample_rate):
+    # ss_pfs = plot_profile(pfs_to_plot, sample_res, sample_rate, i_offset=None, filename=(output_dir+'/'+frame_file_name+'-'+str(i).zfill(3)+'.png'), ss_pf_list=ss_pfs)
+    ss_pfs = plot_profile(pfs_to_plot, sample_res, sample_rate, i_offset=i, filename=(output_dir+'/'+frame_file_name+'-'+str(i).zfill(3)+'.png'), ss_pf_list=ss_pfs)
 
-# if not isinstance(ss_pfs, type(None)):
-#     ss_pfs = pd.concat(ss_pfs)
-#     ss_pfs.to_csv(frame_file_name+'.csv')
+if not isinstance(ss_pfs, type(None)):
+    ss_pfs = pd.concat(ss_pfs)
+    ss_pfs.to_csv(frame_file_name+'.csv')
